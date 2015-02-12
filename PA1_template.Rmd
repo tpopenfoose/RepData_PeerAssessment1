@@ -7,19 +7,157 @@ output:
 
 
 ## Loading and preprocessing the data
+### First we load the data provided for our class.
+```{r, echo=TRUE}
+library(lubridate)
+library(dplyr, warn.conflicts=FALSE)
+library(timeDate)
+library(ggplot2)
 
+# load the zipped captured activity data into a data frame
+activityDF <- read.csv(unz("activity.zip", "activity.csv"))
 
+# check the activity data frame structure
+str(activityDF)
+```
+
+### I have chosen to preprocess the data by adding another field for a POSIXct vector
+```{r, echo=TRUE}
+# convert character encoded dates into new POSIXct formated date time objects
+activityDF$DateTime <- with(activityDF, 
+                            ymd_hms(paste(date, 
+                                          sprintf("%06d", interval * 100), 
+                                          sep=" ")))
+```
 
 ## What is mean total number of steps taken per day?
+For this part of the project, we ignore the missing data.
+
+### First I need to average the steps taken per day.
+```{r, echo=TRUE}
+# first we need to sum the steps taken each day
+dailyActivityDF <- activityDF %>% 
+                        group_by(date) %>% 
+                        summarize(TotalDailySteps=sum(steps, na.rm=TRUE))
+```
+### Second, I generate a Histogram of averages steps taken per day
+```{r, echo=TRUE}
+# generate a histogram
+hist(dailyActivityDF$TotalDailySteps, xlab="Steps taken per Day", 
+     main="Histogram of Total Steps Taken Per Day")
+```
+
+### What are the statistics for total number of steps per day?
+```{r, echo=TRUE}
+# now check the central tendency statistics
+mean(dailyActivityDF$TotalDailySteps)
+median(dailyActivityDF$TotalDailySteps)
+```
+
+The mean of the total number of 
+steps taken per day = `r mean(dailyActivityDF$TotalDailySteps)`
 
 
+The median of the total number of 
+steps taken per day = `r median(dailyActivityDF$TotalDailySteps)`
 
 ## What is the average daily activity pattern?
+```{r, echo=TRUE}
+# first find the average steps per interval across all days
+intervalActivityDF <- activityDF %>% 
+                        group_by(interval) %>% 
+                        summarize(MeanSteps=mean(steps, na.rm=TRUE))
+# now plot using base graphics and a line plot
+with(intervalActivityDF, plot(interval, MeanSteps, type='l', 
+            xlab="5 minute interval", 
+            ylab="Average Steps Taken", 
+            main="Line Plot of Average Steps Taken per Time Interval"))
+```
 
+## What is the max average daily steps?
+```{r, echo=TRUE}
+intervalActivityDF[which.max(intervalActivityDF$MeanSteps), ]
+```
 
+The 5-minute interval which on the average has the most steps is the
+`r intervalActivityDF[which.max(intervalActivityDF$MeanSteps), "interval"]`
+interval and it has on the average 
+`r intervalActivityDF[which.max(intervalActivityDF$MeanSteps), "MeanSteps"]` 
+steps!
 
 ## Imputing missing values
+### How many missing rows are there?
+```{r, echo=TRUE}
+# count the rows with NA
+sum(is.na(activityDF$steps))
+```
+There are `r sum(is.na(activityDF$steps))` missing values.
+
+### Method of Imputation
+I have chosen to use the median value of the intervals as the replacement value for the missing values.
+```{r, echo=TRUE}
+# impute using the interval medians
+imputedDF <- activityDF %>% 
+    group_by(interval) %>% 
+    mutate(steps=replace(steps, is.na(steps), median(steps, na.rm=TRUE)))
+```
+
+```{r, echo=TRUE}
+# first sum the steps taken each day
+dailyImputedDF <- imputedDF %>% 
+                        group_by(date) %>% 
+                        summarize(TotalDailySteps=sum(steps, na.rm=TRUE))
+# generate the histogram
+hist(dailyImputedDF$TotalDailySteps, xlab="Steps taken per Day", 
+     main="Histogram of Total Steps Taken Per Day (using imputed data)")
+```
+
+### What are the statistics for total number of steps per day on the imputed data?
+```{r, echo=TRUE}
+# get the mean and median
+mean(dailyImputedDF$TotalDailySteps)
+median(dailyImputedDF$TotalDailySteps)
+```
+
+The mean of the total number of 
+steps taken per day = `r mean(dailyImputedDF$TotalDailySteps)`
 
 
+The median of the total number of 
+steps taken per day = `r median(dailyImputedDF$TotalDailySteps)`
+
+### Do these values differ from estimates from the first part of the assignment?
+
+The measures of central tendency of the imputed data set seems to be pretty much the same as without the imputed data.
+
+### What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+There is minimal impact of imputing missing data on the estimates of the total daily number of steps.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+### First mark the rows of the imputed dataset with which "Part Of Week"
+```{r}
+# now mark the weekends and weekdays in the dataframe
+imputedDF[which(isWeekend(imputedDF$DateTime)), 'PartOfWeek'] <- 'weekend'
+imputedDF[which(isWeekday(imputedDF$DateTime)), 'PartOfWeek'] <- 'weekday'
+#imputedDF$PartOfWeek <- as.factor(imputedDF$PartOfWeek)
+```
+### Average the steps per interval by Part Of Week
+```{r, echo=TRUE}
+averagedDF <- imputedDF %>%
+    group_by(PartOfWeek, interval) %>%
+    mutate(avgSteps=mean(steps))
+```
+
+### Now plot the data
+```{r, echo=TRUE}
+ggplot(averagedDF, aes(interval, avgSteps)) +
+    geom_line() + facet_wrap( ~ PartOfWeek, ncol=1) +
+    theme(strip.background = element_rect(fill="wheat")) +
+    ylab("Average Number of Steps") +
+    xlab("5 minute interval") +
+    ggtitle("Panel Plot of Average Number of Steps versus Time Interval")
+```
+
+## Conclusion
+After looking at the panel plots, it appears there is a definite difference between the time intervals that steps are taken during the week when compared to the weekend.
