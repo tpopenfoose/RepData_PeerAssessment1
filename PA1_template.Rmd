@@ -1,8 +1,9 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
+title: 'Reproducible Research: Peer Assessment 1'
+output:
   html_document:
-    keep_md: true
+    keep_md: yes
+  pdf_document: default
 ---
 
 
@@ -33,14 +34,14 @@ activityDF$DateTime <- with(activityDF,
 ## What is mean total number of steps taken per day?
 For this part of the project, we ignore the missing data.
 
-### First I need to average the steps taken per day.
+### First, need to average the steps taken per day.
 ```{r, echo=TRUE}
 # first we need to sum the steps taken each day
 dailyActivityDF <- activityDF %>% 
                         group_by(date) %>% 
                         summarize(TotalDailySteps=sum(steps, na.rm=TRUE))
 ```
-### Second, I generate a Histogram of averages steps taken per day
+### Second, generate a Histogram of averages steps taken per day
 ```{r, echo=TRUE}
 # generate a histogram
 hist(dailyActivityDF$TotalDailySteps, xlab="Steps taken per Day", 
@@ -74,7 +75,7 @@ with(intervalActivityDF, plot(interval, MeanSteps, type='l',
             main="Line Plot of Average Steps Taken per Time Interval"))
 ```
 
-## What is the max average daily steps?
+## Which 5-minute time interval has the max average daily steps?
 ```{r, echo=TRUE}
 intervalActivityDF[which.max(intervalActivityDF$MeanSteps), ]
 ```
